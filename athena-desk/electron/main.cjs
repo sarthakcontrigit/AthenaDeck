@@ -1,9 +1,8 @@
 
-const { app, BrowserWindow, ipcMain } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog } = require("electron");
 const path = require("node:path");
 const fs = require("node:fs/promises");
 
-// Create the application window
 function createWindow() {
   const mainWindow = new BrowserWindow({
     width: 1200,
@@ -21,60 +20,71 @@ function createWindow() {
   mainWindow.loadURL("http://localhost:5173");
 }
 
-// Location of the persistent notes file
 function getNotesPath() {
   return path.join(app.getPath("userData"), "athena-notes.json");
 }
 
-// IPC: Return the application version
-ipcMain.handle("app:get-version", () => {
-  return app.getVersion();
-});
+function validateNotes(notes) {
+  return (
+    Array.isArray(notes) &&
+    notes.length <= 1000 &&
+    notes.every(
+      (note) =>
+        note &&
+        Number.isSafeInteger(note.id) &&
+        typeof note.title === "string" &&
+        typeof note.content === "string" &&
+        note.title.length <= 200 &&
+        note.content.length <= 20000
+    )
+  );
+}
 
-// IPC: Load saved notes
+ipcMain.handle("app:get-version", () => app.getVersion());
+
 ipcMain.handle("notes:load", async () => {
   try {
     const content = await fs.readFile(getNotesPath(), "utf8");
     const notes = JSON.parse(content);
 
-    return Array.isArray(notes) ? notes : [];
+    return validateNotes(notes) ? notes : [];
   } catch (error) {
-    if (error.code === "ENOENT") {
-      return [];
-    }
-
+    if (error.code === "ENOENT") return [];
     throw error;
   }
 });
 
-// IPC: Save notes to the local filesystem
 ipcMain.handle("notes:save", async (_event, notes) => {
-  if (!Array.isArray(notes) || notes.length > 1000) {
+  if (!validateNotes(notes)) {
     throw new Error("Invalid notes data.");
   }
 
-  const isValid = notes.every(
-    (note) =>
-      note &&
-      Number.isSafeInteger(note.id) &&
-      typeof note.title === "string" &&
-      typeof note.content === "string" &&
-      note.title.length <= 200 &&
-      note.content.length <= 20000
-  );
+  const filePath = getNotesPath();
 
-  if (!isValid) {
-    throw new Error("Invalid note format.");
+  await fs.mkdir(path.dirname(filePath), { recursive: true });
+  await fs.writeFile(filePath, JSON.stringify(notes, null, 2), "utf8");
+
+  return { success: true };
+});
+
+// Export notes using the native Save dialog.
+ipcMain.handle("notes:export", async (_event, notes) => {
+  if (!validateNotes(notes)) {
+    throw new Error("Invalid notes data.");
   }
 
-  const notesPath = getNotesPath();
-
-  await fs.mkdir(path.dirname(notesPath), {
-    recursive: true,
+  const result = await dialog.showSaveDialog({
+    title: "Export Athena Desk Notes",
+    defaultPath: "athena-notes.json",
+    filters: [{ name: "JSON Files", extensions: ["json"] }],
   });
 
+  if (result.canceled || !result.filePath) {
+    return { canceled: true };
+  }
+
   await fs.writeFile(
-    notesPath,
+    result.filePath,
     JSON.stringify(notes, null, 2),
     "utf8"
   );
@@ -82,7 +92,28 @@ ipcMain.handle("notes:save", async (_event, notes) => {
   return { success: true };
 });
 
-// Start Electron after initialization
+// Import notes using the native Open dialog.
+ipcMain.handle("notes:import", async () => {
+  const result = await dialog.showOpenDialog({
+    title: "Import Athena Desk Notes",
+    properties: ["openFile"],
+    filters: [{ name: "JSON Files", extensions: ["json"] }],
+  });
+
+  if (result.canceled || result.filePaths.length === 0) {
+    return { canceled: true };
+  }
+
+  const content = await fs.readFile(result.filePaths[0], "utf8");
+  const notes = JSON.parse(content);
+
+  if (!validateNotes(notes)) {
+    throw new Error("The selected file does not contain valid Athena notes.");
+  }
+
+  return { success: true, notes };
+});
+
 app.whenReady().then(() => {
   createWindow();
 
@@ -93,9 +124,6 @@ app.whenReady().then(() => {
   });
 });
 
-// Quit on all windows closed, except on macOS
 app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") {
-    app.quit();
-  }
+  if (process.platform !== "darwin") app.quit();
 });

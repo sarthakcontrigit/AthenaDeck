@@ -504,3 +504,93 @@ h1 {
   font-size: 13px;
   text-align: center;
 }
+
+.note-form {
+  display: grid;
+  gap: 12px;
+}
+
+.note-form input,
+.note-form textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid #383947;
+  border-radius: 8px;
+  background: #111219;
+  color: #e9eaf2;
+  font: inherit;
+  font-size: 13px;
+  resize: vertical;
+}
+
+.note-form input:focus,
+.note-form textarea:focus {
+  outline: none;
+  border-color: #8974fa;
+}
+
+.saved-notes {
+  margin-top: 28px;
+}
+
+.saved-notes > h2 {
+  font-size: 16px;
+}
+
+.saved-note {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 15px;
+  padding: 17px 0;
+  border-bottom: 1px solid #30313d;
+}
+
+.saved-note h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+
+.saved-note p {
+  margin: 0;
+  color: #a4a5b4;
+  font-size: 13px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.notes-error {
+  padding: 10px;
+  border-radius: 7px;
+  background: #39232b;
+  color: #ffb3bf;
+  font-size: 12px;
+}
+
+.file-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.secondary-button {
+  padding: 10px 14px;
+  border: 1px solid #454154;
+  border-radius: 8px;
+  background: #242331;
+  color: #d4caff;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.secondary-button:hover {
+  background: #302b43;
+}
+
+.secondary-button:disabled,
+.primary-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
