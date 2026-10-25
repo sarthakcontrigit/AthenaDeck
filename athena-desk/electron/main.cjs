@@ -1,5 +1,13 @@
 
-const { app, BrowserWindow, ipcMain, dialog, Notification } = require("electron");
+const {
+  app,
+  BrowserWindow,
+  ipcMain,
+  dialog,
+  Notification,
+  shell,
+} = require("electron");
+
 const path = require("node:path");
 const fs = require("node:fs/promises");
 
@@ -123,7 +131,6 @@ ipcMain.handle("notification:show", (_event, options) => {
   return { success: true };
 });
 
-// Window-control IPC handlers
 ipcMain.handle("window:minimize", () => {
   mainWindow?.minimize();
 });
@@ -146,6 +153,39 @@ ipcMain.handle("window:close", () => {
 
 ipcMain.handle("window:is-maximized", () => {
   return mainWindow?.isMaximized() ?? false;
+});
+
+// Return selected, non-sensitive runtime information.
+ipcMain.handle("system:get-info", () => ({
+  platform: process.platform,
+  architecture: process.arch,
+  electron: process.versions.electron,
+  chrome: process.versions.chrome,
+  node: process.versions.node,
+  appVersion: app.getVersion(),
+}));
+
+// Only permit HTTPS links to be opened externally.
+ipcMain.handle("shell:open-external", async (_event, url) => {
+  if (typeof url !== "string") {
+    throw new Error("Invalid URL.");
+  }
+
+  let parsedUrl;
+
+  try {
+    parsedUrl = new URL(url);
+  } catch {
+    throw new Error("Invalid URL.");
+  }
+
+  if (parsedUrl.protocol !== "https:") {
+    throw new Error("Only HTTPS links are allowed.");
+  }
+
+  await shell.openExternal(parsedUrl.toString());
+
+  return { success: true };
 });
 
 app.whenReady().then(() => {
