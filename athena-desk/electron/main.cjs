@@ -6,6 +6,7 @@ const {
   dialog,
   Notification,
   shell,
+  Menu
 } = require("electron");
 
 const path = require("node:path");
@@ -242,7 +243,99 @@ ipcMain.handle("shell:open-external", async (_event, url) => {
   return { success: true };
 });
 
+
+function createApplicationMenu() {
+  const template = [
+    {
+      label: "Athena Desk",
+      submenu: [
+        {
+          label: "About Athena Desk",
+          click: () => {
+            dialog.showMessageBox(mainWindow, {
+              type: "info",
+              title: "About Athena Desk",
+              message: "Athena Desk",
+              detail: `Version ${app.getVersion()}\nPersonal desktop workspace.`,
+            });
+          },
+        },
+        { type: "separator" },
+        { role: "hide" },
+        { role: "hideOthers" },
+        { role: "unhide" },
+        { type: "separator" },
+        { role: "quit" },
+      ],
+    },
+    {
+      label: "File",
+      submenu: [
+        {
+          label: "Go to Dashboard",
+          accelerator: "CmdOrCtrl+1",
+          click: () => mainWindow?.webContents.send("app:navigate", "Dashboard"),
+        },
+        {
+          label: "Go to Tasks",
+          accelerator: "CmdOrCtrl+2",
+          click: () => mainWindow?.webContents.send("app:navigate", "Tasks"),
+        },
+        {
+          label: "Go to Notes",
+          accelerator: "CmdOrCtrl+3",
+          click: () => mainWindow?.webContents.send("app:navigate", "Notes"),
+        },
+        {
+          label: "Go to Settings",
+          accelerator: "CmdOrCtrl+4",
+          click: () => mainWindow?.webContents.send("app:navigate", "Settings"),
+        },
+        { type: "separator" },
+        { role: "close" },
+      ],
+    },
+    {
+      label: "View",
+      submenu: [
+        { role: "reload" },
+        { role: "forceReload" },
+        { role: "toggleDevTools" },
+        { type: "separator" },
+        { role: "resetZoom" },
+        { role: "zoomIn" },
+        { role: "zoomOut" },
+        { type: "separator" },
+        { role: "togglefullscreen" },
+      ],
+    },
+    {
+      label: "Window",
+      submenu: [
+        { role: "minimize" },
+        { role: "zoom" },
+        { role: "front" },
+      ],
+    },
+    {
+      label: "Help",
+      submenu: [
+        {
+          label: "Electron Documentation",
+          click: async () => {
+            await shell.openExternal("https://www.electronjs.org/docs/latest");
+          },
+        },
+      ],
+    },
+  ];
+
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+}
+
+
 app.whenReady().then(() => {
+  createApplicationMenu();
   createWindow();
 
   app.on("activate", () => {

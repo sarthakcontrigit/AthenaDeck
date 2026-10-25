@@ -23,4 +23,20 @@ contextBridge.exposeInMainWorld("athenaAPI", {
 
   getSystemInfo: () => ipcRenderer.invoke("system:get-info"),
   openExternal: (url) => ipcRenderer.invoke("shell:open-external", url),
+
+  onNavigate: (callback) => {
+    const listener = (_event, page) => {
+      const allowedPages = ["Dashboard", "Tasks", "Notes", "Settings"];
+
+      if (allowedPages.includes(page)) {
+        callback(page);
+      }
+    };
+
+    ipcRenderer.on("app:navigate", listener);
+
+    return () => {
+      ipcRenderer.removeListener("app:navigate", listener);
+    };
+  },
 });

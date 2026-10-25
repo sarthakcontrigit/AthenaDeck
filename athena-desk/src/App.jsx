@@ -1,9 +1,9 @@
 
 import { useEffect, useState } from "react";
-import DashboardPage from "./pages/DashboardPage";
-import TasksPage from "./pages/TasksPage";
-import NotesPage from "./pages/NotesPage";
-import SettingsPage from "./pages/SettingsPage";
+import DashboardPage from "./pages/DashboardPage.jsx";
+import TasksPage from "./pages/TasksPage.jsx";
+import NotesPage from "./pages/NotesPage.jsx";
+import SettingsPage from "./pages/SettingsPage.jsx";
 import "./App.css";
 
 function App() {
@@ -21,6 +21,10 @@ function App() {
       .isWindowMaximized()
       .then(setIsMaximized)
       .catch(() => {});
+
+    const unsubscribe = window.athenaAPI.onNavigate(setActivePage);
+
+    return unsubscribe;
   }, []);
 
   const navigation = [
@@ -87,7 +91,6 @@ function App() {
               className="window-button"
               onClick={() => window.athenaAPI.minimizeWindow()}
               aria-label="Minimize window"
-              title="Minimize"
             >
               −
             </button>
@@ -95,8 +98,7 @@ function App() {
             <button
               className="window-button"
               onClick={toggleMaximize}
-              aria-label={isMaximized ? "Restore window" : "Maximize window"}
-              title={isMaximized ? "Restore" : "Maximize"}
+              aria-label="Toggle maximize"
             >
               {isMaximized ? "❐" : "□"}
             </button>
@@ -105,7 +107,6 @@ function App() {
               className="window-button close-window"
               onClick={() => window.athenaAPI.closeWindow()}
               aria-label="Close window"
-              title="Close"
             >
               ×
             </button>
