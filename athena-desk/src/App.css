@@ -6,7 +6,6 @@
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  font-optical-sizing: auto;
 }
 
 * {
@@ -19,8 +18,19 @@ body {
   min-height: 100vh;
 }
 
-button {
+button,
+input,
+textarea {
   font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .app-shell {
@@ -98,7 +108,6 @@ button {
   border-radius: 9px;
   background: transparent;
   text-align: left;
-  cursor: pointer;
 }
 
 .nav-item span {
@@ -153,11 +162,12 @@ button {
 }
 
 .topbar {
-  height: 70px;
-  padding: 0 38px;
+  min-height: 70px;
+  padding: 12px 25px 12px 38px;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 16px;
   border-bottom: 1px solid #292a35;
 }
 
@@ -169,6 +179,12 @@ button {
 
 .topbar strong {
   font-size: 13px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .status-pill {
@@ -187,6 +203,27 @@ button {
   height: 7px;
   border-radius: 50%;
   background: #5bd4a1;
+}
+
+.window-button {
+  width: 31px;
+  height: 31px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #353643;
+  border-radius: 7px;
+  background: #1b1c25;
+  color: #d9d9e5;
+  font-size: 18px;
+}
+
+.window-button:hover {
+  background: #30313d;
+}
+
+.window-button.close-window:hover {
+  background: #a53f51;
+  color: white;
 }
 
 .page-content {
@@ -361,32 +398,7 @@ h1 {
 }
 
 .getting-started p {
-  margin: 0;
-}
-
-.footer-note {
-  margin-top: 26px;
-  color: #666878;
-  font-size: 11px;
-  text-align: center;
-}
-
-@media (max-width: 950px) {
-  .sidebar {
-    width: 195px;
-  }
-
-  .page-content {
-    padding: 25px;
-  }
-
-  .stats-grid {
-    gap: 10px;
-  }
-
-  .stat-card {
-    padding: 15px;
-  }
+  margin: 0 0 14px;
 }
 
 .primary-button {
@@ -397,11 +409,23 @@ h1 {
   color: #fff;
   font-weight: 600;
   font-size: 12px;
-  cursor: pointer;
 }
 
 .primary-button:hover {
   background: #7660ec;
+}
+
+.secondary-button {
+  padding: 10px 14px;
+  border: 1px solid #454154;
+  border-radius: 8px;
+  background: #242331;
+  color: #d4caff;
+  font-size: 12px;
+}
+
+.secondary-button:hover {
+  background: #302b43;
 }
 
 .task-panel {
@@ -413,18 +437,26 @@ h1 {
   gap: 10px;
 }
 
-.task-form input {
-  flex: 1;
+.task-form input,
+.note-form input,
+.note-form textarea {
   min-width: 0;
   padding: 12px 14px;
   border: 1px solid #383947;
   border-radius: 8px;
   background: #111219;
   color: #e9eaf2;
-  outline: none;
+  font-size: 13px;
 }
 
-.task-form input:focus {
+.task-form input {
+  flex: 1;
+}
+
+.task-form input:focus,
+.note-form input:focus,
+.note-form textarea:focus {
+  outline: none;
   border-color: #8974fa;
 }
 
@@ -441,7 +473,6 @@ h1 {
   background: transparent;
   color: #a4a5b4;
   font-size: 12px;
-  cursor: pointer;
 }
 
 .filter-button.selected {
@@ -461,6 +492,8 @@ h1 {
   gap: 12px;
   padding: 15px 4px;
   border-bottom: 1px solid #30313d;
+  color: #dedfeb;
+  font-size: 13px;
 }
 
 .task-label {
@@ -468,15 +501,12 @@ h1 {
   align-items: center;
   gap: 12px;
   min-width: 0;
-  color: #dedfeb;
-  font-size: 13px;
 }
 
 .task-label input {
-  accent-color: #8974fa;
   width: 16px;
   height: 16px;
-  cursor: pointer;
+  accent-color: #8974fa;
 }
 
 .task-done {
@@ -491,7 +521,6 @@ h1 {
   background: transparent;
   color: #f19aa9;
   font-size: 11px;
-  cursor: pointer;
 }
 
 .delete-button:hover {
@@ -505,6 +534,13 @@ h1 {
   text-align: center;
 }
 
+.file-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
 .note-form {
   display: grid;
   gap: 12px;
@@ -513,20 +549,11 @@ h1 {
 .note-form input,
 .note-form textarea {
   width: 100%;
-  padding: 12px 14px;
-  border: 1px solid #383947;
-  border-radius: 8px;
-  background: #111219;
-  color: #e9eaf2;
-  font: inherit;
-  font-size: 13px;
-  resize: vertical;
 }
 
-.note-form input:focus,
-.note-form textarea:focus {
-  outline: none;
-  border-color: #8974fa;
+.note-form textarea {
+  font-family: inherit;
+  resize: vertical;
 }
 
 .saved-notes {
@@ -568,59 +595,53 @@ h1 {
   font-size: 12px;
 }
 
-.file-actions {
+.system-info-row {
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 18px;
-}
-
-.secondary-button {
-  padding: 10px 14px;
-  border: 1px solid #454154;
-  border-radius: 8px;
-  background: #242331;
-  color: #d4caff;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.secondary-button:hover {
-  background: #302b43;
-}
-
-.secondary-button:disabled,
-.primary-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.header-actions {
-  display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 8px;
+  gap: 16px;
+  padding: 16px 4px;
+  border-bottom: 1px solid #30313d;
+  font-size: 13px;
 }
 
-.window-button {
-  width: 31px;
-  height: 31px;
-  display: grid;
-  place-items: center;
-  border: 1px solid #353643;
-  border-radius: 7px;
-  background: #1b1c25;
-  color: #d9d9e5;
-  font-size: 18px;
-  cursor: pointer;
+.system-info-row span {
+  color: #9293a4;
 }
 
-.window-button:hover {
-  background: #30313d;
+.system-info-row strong {
+  color: #e9eaf2;
+  text-align: right;
+  overflow-wrap: anywhere;
 }
 
-.window-button.close-window:hover {
-  background: #a53f51;
-  color: white;
+.documentation-button {
+  margin-top: 22px;
+}
+
+.footer-note {
+  margin-top: 26px;
+  color: #666878;
+  font-size: 11px;
+  text-align: center;
+}
+
+@media (max-width: 950px) {
+  .sidebar {
+    width: 195px;
+  }
+
+  .page-content {
+    padding: 25px;
+  }
+
+  .stats-grid {
+    gap: 10px;
+  }
+
+  .stat-card {
+    padding: 15px;
+  }
 }
 
 @media (max-width: 900px) {
