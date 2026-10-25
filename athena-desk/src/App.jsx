@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import "./App.css";
 
 const initialTasks = [
@@ -13,6 +13,14 @@ function App() {
   const [tasks, setTasks] = useState(initialTasks);
   const [newTask, setNewTask] = useState("");
   const [filter, setFilter] = useState("All");
+  const [appVersion, setAppVersion] = useState("Loading...");
+
+useEffect(() => {
+  window.athenaAPI
+    .getAppVersion()
+    .then(setAppVersion)
+    .catch(() => setAppVersion("Unavailable"));
+}, []);
 
   const navigation = [
     { name: "Dashboard", icon: "⌂" },
@@ -286,8 +294,8 @@ function App() {
           )}
 
           <p className="footer-note">
-            Athena Desk · Built with React and Electron
-          </p>
+  Athena Desk · Electron {appVersion}
+</p>
         </section>
       </main>
     </div>
