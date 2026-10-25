@@ -1,12 +1,13 @@
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 function NotesPage() {
   const [notes, setNotes] = useState([]);
-  const [noteTitle, setNoteTitle] = useState("");
-  const [noteContent, setNoteContent] = useState("");
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState("All");
   const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
@@ -18,7 +19,7 @@ function NotesPage() {
         if (active) setNotes(savedNotes);
       })
       .catch(() => {
-        if (active) setMessage("Could not load saved notes.");
+        if (active) setMessage("Could not load your saved notes.");
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -29,163 +30,198 @@ function NotesPage() {
     };
   }, []);
 
-  async function persistNotes(updatedNotes) {
-    setBusy(true);
-    setMessage("");
+  useEffect(() => {
+    if (loading) return;
 
-    try {
-      await window.athenaAPI.saveNotes(updatedNotes);
-      setNotes(updatedNotes);
-      return true;
-    } catch {
-      setMessage("Could not save notes. Please try again.");
-      return false;
-    } finally {
-      setBusy(false);
-    }
-  }
+    let active = true;
 
-  async function addNote(event) {
+    window.athenaAPI
+      .saveNotes(notes)
+      .then(() => {
+        if (active) setMessage("");
+      })
+      .catch(() => {
+        if (active) setMessage("Could not save notes to disk.");
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [notes, loading]);
+
+  const visibleNotes = useMemo(() => {
+    const query = search.trim().toLowerCase();
+
+    return notes.filter((note) => {
+      const matchesSearch =
+        note.title.toLowerCase().includes(query) ||
+        note.content.toLowerCase().includes(query);
+
+      const matchesFilter =
+        filter === "All" ||
+        (filter === "Recent" && Date.now() - note.id < 7 * 86400000);
+
+      return matchesSearch && matchesFilter;
+    });
+  }, [notes, search, filter]);
+
+  function addNote(event) {
     event.preventDefault();
 
-    const title = noteTitle.trim();
-    const content = noteContent.trim();
+    const cleanTitle = title.trim();
+    const cleanContent = content.trim();
 
-    if (!title || !content || busy) return;
-
-    if (title.length > 200 || content.length > 20000) {
-      setMessage("The title or content is too long.");
+    if (!cleanTitle || !cleanContent) {
+      setMessage("Enter both a title and note content.");
       return;
     }
 
-    const updatedNotes = [
-      ...notes,
-      { id: Date.now(), title, content },
-    ];
-
-    if (await persistNotes(updatedNotes)) {
-      setNoteTitle("");
-      setNoteContent("");
+    if (cleanTitle.length > 200 || cleanContent.length > 20000) {
+      setMessage("The title or note content exceeds the allowed length.");
+      return;
     }
+
+    setNotes((current) => [
+      {
+        id: Date.now(),
+        title: cleanTitle,
+        content: cleanContent,
+      },
+      ...current,
+    ]);
+
+    setTitle("");
+    setContent("");
+    setMessage("");
   }
 
-  async function deleteNote(id) {
-    if (busy) return;
-    await persistNotes(notes.filter((note) => note.id !== id));
+  function deleteNote(id) {
+    setNotes((current) => current.filter((note) => note.id !== id));
   }
 
   async function exportNotes() {
-    setMessage("");
-
     try {
       const result = await window.athenaAPI.exportNotes(notes);
 
-      if (result.canceled) return;
-      setMessage("Notes exported successfully.");
+      if (!result.canceled) {
+        setMessage("Notes exported successfully.");
+      }
     } catch {
       setMessage("Could not export notes.");
     }
   }
 
   async function importNotes() {
-    setMessage("");
-
     try {
       const result = await window.athenaAPI.importNotes();
 
       if (result.canceled) return;
 
-      // Merge imported notes with current notes, assigning new IDs
-      // when an imported ID conflicts with an existing one.
-      const merged = [...notes];
-      const usedIds = new Set(notes.map((note) => note.id));
+      setNotes((current) => {
+        const existingIds = new Set(current.map((note) => note.id));
+        const imported = result.notes.filter(
+          (note) => !existingIds.has(note.id)
+        );
 
-      for (const note of result.notes) {
-        const imported = {
-          ...note,
-          id: usedIds.has(note.id) ? Date.now() + merged.length : note.id,
-        };
+        return [...imported, ...current];
+      });
 
-        usedIds.add(imported.id);
-        merged.push(imported);
-      }
-
-      if (merged.length > 1000) {
-        setMessage("Too many notes to import.");
-        return;
-      }
-
-      if (await persistNotes(merged)) {
-        setMessage(`${result.notes.length} note(s) imported.`);
-      }
+      setMessage("Imported notes will be saved automatically.");
     } catch {
-      setMessage("Could not import notes. Check that the JSON file is valid.");
+      setMessage("Could not import notes. Check the JSON file.");
     }
+  }
+
+  if (loading) {
+    return <p className="subtitle">Loading your notes...</p>;
   }
 
   return (
     <>
       <p className="eyebrow">CAPTURE YOUR IDEAS</p>
       <h1>Notes</h1>
-      <p className="subtitle">Your notes are saved on this computer.</p>
+      <p className="subtitle">
+        Your notes are saved on this computer.
+      </p>
+
+      {message && (
+        <p className="notes-error" role="status">
+          {message}
+        </p>
+      )}
 
       <section className="panel task-panel">
-        {message && (
-          <p className="notes-error" role="status">
-            {message}
-          </p>
-        )}
-
         <div className="file-actions">
-          <button className="secondary-button" onClick={importNotes} disabled={busy || loading}>
+          <button className="secondary-button" onClick={importNotes}>
             Import JSON
           </button>
-          <button className="secondary-button" onClick={exportNotes} disabled={busy || loading}>
+          <button className="secondary-button" onClick={exportNotes}>
             Export JSON
           </button>
         </div>
 
         <form className="note-form" onSubmit={addNote}>
           <input
-            value={noteTitle}
-            onChange={(event) => setNoteTitle(event.target.value)}
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
             placeholder="Note title"
             maxLength={200}
-            required
+            aria-label="Note title"
           />
 
           <textarea
-            value={noteContent}
-            onChange={(event) => setNoteContent(event.target.value)}
+            value={content}
+            onChange={(event) => setContent(event.target.value)}
             placeholder="Write your note..."
+            rows={5}
             maxLength={20000}
-            rows={4}
-            required
+            aria-label="Note content"
           />
 
-          <button className="primary-button" type="submit" disabled={busy || loading}>
-            {busy ? "Saving..." : "Save note"}
+          <button className="primary-button" type="submit">
+            Save note
           </button>
         </form>
 
         <div className="saved-notes">
           <h2>Saved notes ({notes.length})</h2>
 
-          {loading ? (
-            <p className="empty-state">Loading notes...</p>
-          ) : notes.length === 0 ? (
-            <p className="empty-state">No notes yet. Create your first note above.</p>
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search titles and note content..."
+            aria-label="Search notes"
+          />
+
+          <div className="filter-row">
+            {["All", "Recent"].map((option) => (
+              <button
+                key={option}
+                className={`filter-button ${filter === option ? "selected" : ""}`}
+                onClick={() => setFilter(option)}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+
+          {visibleNotes.length === 0 ? (
+            <p className="empty-state">
+              {notes.length === 0
+                ? "No notes yet. Create your first note above."
+                : "No notes match your search."}
+            </p>
           ) : (
-            notes.map((note) => (
+            visibleNotes.map((note) => (
               <article className="saved-note" key={note.id}>
                 <div>
                   <h3>{note.title}</h3>
                   <p>{note.content}</p>
                 </div>
+
                 <button
                   className="delete-button"
                   onClick={() => deleteNote(note.id)}
-                  disabled={busy}
                 >
                   Delete
                 </button>
