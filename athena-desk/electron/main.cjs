@@ -1,5 +1,5 @@
 
-const { app, BrowserWindow, ipcMain, dialog } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog, Notification } = require("electron");
 const path = require("node:path");
 const fs = require("node:fs/promises");
 
@@ -46,7 +46,6 @@ ipcMain.handle("notes:load", async () => {
   try {
     const content = await fs.readFile(getNotesPath(), "utf8");
     const notes = JSON.parse(content);
-
     return validateNotes(notes) ? notes : [];
   } catch (error) {
     if (error.code === "ENOENT") return [];
@@ -55,23 +54,17 @@ ipcMain.handle("notes:load", async () => {
 });
 
 ipcMain.handle("notes:save", async (_event, notes) => {
-  if (!validateNotes(notes)) {
-    throw new Error("Invalid notes data.");
-  }
+  if (!validateNotes(notes)) throw new Error("Invalid notes data.");
 
   const filePath = getNotesPath();
-
   await fs.mkdir(path.dirname(filePath), { recursive: true });
   await fs.writeFile(filePath, JSON.stringify(notes, null, 2), "utf8");
 
   return { success: true };
 });
 
-// Export notes using the native Save dialog.
 ipcMain.handle("notes:export", async (_event, notes) => {
-  if (!validateNotes(notes)) {
-    throw new Error("Invalid notes data.");
-  }
+  if (!validateNotes(notes)) throw new Error("Invalid notes data.");
 
   const result = await dialog.showSaveDialog({
     title: "Export Athena Desk Notes",
@@ -79,9 +72,7 @@ ipcMain.handle("notes:export", async (_event, notes) => {
     filters: [{ name: "JSON Files", extensions: ["json"] }],
   });
 
-  if (result.canceled || !result.filePath) {
-    return { canceled: true };
-  }
+  if (result.canceled || !result.filePath) return { canceled: true };
 
   await fs.writeFile(
     result.filePath,
@@ -92,7 +83,6 @@ ipcMain.handle("notes:export", async (_event, notes) => {
   return { success: true };
 });
 
-// Import notes using the native Open dialog.
 ipcMain.handle("notes:import", async () => {
   const result = await dialog.showOpenDialog({
     title: "Import Athena Desk Notes",
@@ -114,16 +104,37 @@ ipcMain.handle("notes:import", async () => {
   return { success: true, notes };
 });
 
+// IPC: Display a native desktop notification.
+ipcMain.handle("notification:show", (_event, options) => {
+  if (
+    !options ||
+    typeof options.title !== "string" ||
+    typeof options.body !== "string"
+  ) {
+    throw new Error("Invalid notification data.");
+  }
+
+  if (!Notification.isSupported()) {
+    return { success: false, reason: "unsupported" };
+  }
+
+  new Notification({
+    title: options.title.slice(0, 100),
+    body: options.body.slice(0, 300),
+  }).show();
+
+  return { success: true };
+});
+
 app.whenReady().then(() => {
   createWindow();
 
   app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
-    }
+    if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 });
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
 });
+

@@ -11,6 +11,7 @@ function TasksPage() {
   const [tasks, setTasks] = useState(initialTasks);
   const [newTask, setNewTask] = useState("");
   const [filter, setFilter] = useState("All");
+  const [message, setMessage] = useState("");
 
   const completedCount = tasks.filter((task) => task.completed).length;
 
@@ -20,7 +21,7 @@ function TasksPage() {
     return true;
   });
 
-  function addTask(event) {
+  async function addTask(event) {
     event.preventDefault();
 
     const title = newTask.trim();
@@ -32,6 +33,20 @@ function TasksPage() {
     ]);
 
     setNewTask("");
+    setMessage("");
+
+    try {
+      const result = await window.athenaAPI.showNotification({
+        title: "Athena Desk",
+        body: `New task added: ${title}`,
+      });
+
+      if (!result.success && result.reason === "unsupported") {
+        setMessage("Your system does not support desktop notifications.");
+      }
+    } catch {
+      setMessage("Task added, but the notification could not be shown.");
+    }
   }
 
   function toggleTask(id) {
@@ -55,6 +70,12 @@ function TasksPage() {
       <p className="subtitle">
         {completedCount} of {tasks.length} tasks completed.
       </p>
+
+      {message && (
+        <p className="notes-error" role="status">
+          {message}
+        </p>
+      )}
 
       <section className="panel task-panel">
         <form className="task-form" onSubmit={addTask}>
@@ -94,7 +115,6 @@ function TasksPage() {
                   {task.title}
                 </span>
               </label>
-
               <button
                 className="delete-button"
                 onClick={() => deleteTask(task.id)}
