@@ -1,17 +1,51 @@
 
-import { useState } from "react";
-
-const initialTasks = [
-  { id: 1, title: "Review lecture notes", completed: false },
-  { id: 2, title: "Finish desktop application", completed: false },
-  { id: 3, title: "Plan weekly study goals", completed: true },
-];
+import { useEffect, useState } from "react";
 
 function TasksPage() {
-  const [tasks, setTasks] = useState(initialTasks);
+  const [tasks, setTasks] = useState([]);
   const [newTask, setNewTask] = useState("");
   const [filter, setFilter] = useState("All");
+  const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    let active = true;
+
+    window.athenaAPI
+      .loadTasks()
+      .then((savedTasks) => {
+        if (active) setTasks(savedTasks);
+      })
+      .catch(() => {
+        if (active) setMessage("Could not load saved tasks.");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (loading) return;
+
+    let active = true;
+
+    window.athenaAPI
+      .saveTasks(tasks)
+      .then(() => {
+        if (active) setMessage("");
+      })
+      .catch(() => {
+        if (active) setMessage("Could not save tasks to disk.");
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [tasks, loading]);
 
   const completedCount = tasks.filter((task) => task.completed).length;
 
@@ -27,25 +61,25 @@ function TasksPage() {
     const title = newTask.trim();
     if (!title) return;
 
+    if (title.length > 500) {
+      setMessage("Task titles must be 500 characters or fewer.");
+      return;
+    }
+
     setTasks((current) => [
       ...current,
       { id: Date.now(), title, completed: false },
     ]);
 
     setNewTask("");
-    setMessage("");
 
     try {
-      const result = await window.athenaAPI.showNotification({
+      await window.athenaAPI.showNotification({
         title: "Athena Desk",
         body: `New task added: ${title}`,
       });
-
-      if (!result.success && result.reason === "unsupported") {
-        setMessage("Your system does not support desktop notifications.");
-      }
     } catch {
-      setMessage("Task added, but the notification could not be shown.");
+      // Task saving is handled separately.
     }
   }
 
@@ -61,6 +95,10 @@ function TasksPage() {
 
   function deleteTask(id) {
     setTasks((current) => current.filter((task) => task.id !== id));
+  }
+
+  if (loading) {
+    return <p className="subtitle">Loading your saved tasks...</p>;
   }
 
   return (
@@ -84,6 +122,7 @@ function TasksPage() {
             onChange={(event) => setNewTask(event.target.value)}
             placeholder="What do you need to do?"
             aria-label="New task"
+            maxLength={500}
           />
           <button className="primary-button" type="submit">
             Add task
@@ -115,6 +154,7 @@ function TasksPage() {
                   {task.title}
                 </span>
               </label>
+
               <button
                 className="delete-button"
                 onClick={() => deleteTask(task.id)}
@@ -125,7 +165,11 @@ function TasksPage() {
           ))}
 
           {visibleTasks.length === 0 && (
-            <p className="empty-state">No tasks in this filter.</p>
+            <p className="empty-state">
+              {tasks.length === 0
+                ? "No tasks yet. Add your first task above."
+                : "No tasks in this filter."}
+            </p>
           )}
         </div>
       </section>

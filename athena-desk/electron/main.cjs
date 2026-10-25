@@ -34,8 +34,8 @@ function createWindow() {
   });
 }
 
-function getNotesPath() {
-  return path.join(app.getPath("userData"), "athena-notes.json");
+function getDataPath(filename) {
+  return path.join(app.getPath("userData"), filename);
 }
 
 function validateNotes(notes) {
@@ -54,31 +54,65 @@ function validateNotes(notes) {
   );
 }
 
-ipcMain.handle("app:get-version", () => app.getVersion());
+function validateTasks(tasks) {
+  return (
+    Array.isArray(tasks) &&
+    tasks.length <= 5000 &&
+    tasks.every(
+      (task) =>
+        task &&
+        Number.isSafeInteger(task.id) &&
+        typeof task.title === "string" &&
+        task.title.trim().length > 0 &&
+        task.title.length <= 500 &&
+        typeof task.completed === "boolean"
+    )
+  );
+}
 
-ipcMain.handle("notes:load", async () => {
+async function readJsonFile(filename) {
   try {
-    const content = await fs.readFile(getNotesPath(), "utf8");
-    const notes = JSON.parse(content);
-    return validateNotes(notes) ? notes : [];
+    return JSON.parse(
+      await fs.readFile(getDataPath(filename), "utf8")
+    );
   } catch (error) {
     if (error.code === "ENOENT") return [];
     throw error;
   }
+}
+
+async function writeJsonFile(filename, data) {
+  const filePath = getDataPath(filename);
+
+  await fs.mkdir(path.dirname(filePath), { recursive: true });
+
+  await fs.writeFile(
+    filePath,
+    JSON.stringify(data, null, 2),
+    "utf8"
+  );
+}
+
+ipcMain.handle("app:get-version", () => app.getVersion());
+
+ipcMain.handle("notes:load", async () => {
+  const notes = await readJsonFile("athena-notes.json");
+  return validateNotes(notes) ? notes : [];
 });
 
 ipcMain.handle("notes:save", async (_event, notes) => {
-  if (!validateNotes(notes)) throw new Error("Invalid notes data.");
+  if (!validateNotes(notes)) {
+    throw new Error("Invalid notes data.");
+  }
 
-  const filePath = getNotesPath();
-  await fs.mkdir(path.dirname(filePath), { recursive: true });
-  await fs.writeFile(filePath, JSON.stringify(notes, null, 2), "utf8");
-
+  await writeJsonFile("athena-notes.json", notes);
   return { success: true };
 });
 
 ipcMain.handle("notes:export", async (_event, notes) => {
-  if (!validateNotes(notes)) throw new Error("Invalid notes data.");
+  if (!validateNotes(notes)) {
+    throw new Error("Invalid notes data.");
+  }
 
   const result = await dialog.showSaveDialog({
     title: "Export Athena Desk Notes",
@@ -86,9 +120,16 @@ ipcMain.handle("notes:export", async (_event, notes) => {
     filters: [{ name: "JSON Files", extensions: ["json"] }],
   });
 
-  if (result.canceled || !result.filePath) return { canceled: true };
+  if (result.canceled || !result.filePath) {
+    return { canceled: true };
+  }
 
-  await fs.writeFile(result.filePath, JSON.stringify(notes, null, 2), "utf8");
+  await fs.writeFile(
+    result.filePath,
+    JSON.stringify(notes, null, 2),
+    "utf8"
+  );
+
   return { success: true };
 });
 
@@ -99,17 +140,37 @@ ipcMain.handle("notes:import", async () => {
     filters: [{ name: "JSON Files", extensions: ["json"] }],
   });
 
-  if (result.canceled || result.filePaths.length === 0) {
+  if (result.canceled || !result.filePaths.length) {
     return { canceled: true };
   }
 
-  const notes = JSON.parse(await fs.readFile(result.filePaths[0], "utf8"));
+  const notes = JSON.parse(
+    await fs.readFile(result.filePaths[0], "utf8")
+  );
 
-  if (!validateNotes(notes)) throw new Error("Invalid notes file.");
+  if (!validateNotes(notes)) {
+    throw new Error("Invalid notes file.");
+  }
 
   return { success: true, notes };
 });
 
+// Persistent task storage
+ipcMain.handle("tasks:load", async () => {
+  const tasks = await readJsonFile("athena-tasks.json");
+  return validateTasks(tasks) ? tasks : [];
+});
+
+ipcMain.handle("tasks:save", async (_event, tasks) => {
+  if (!validateTasks(tasks)) {
+    throw new Error("Invalid tasks data.");
+  }
+
+  await writeJsonFile("athena-tasks.json", tasks);
+  return { success: true };
+});
+
+// Native notifications
 ipcMain.handle("notification:show", (_event, options) => {
   if (
     !options ||
@@ -131,6 +192,7 @@ ipcMain.handle("notification:show", (_event, options) => {
   return { success: true };
 });
 
+// Window controls
 ipcMain.handle("window:minimize", () => {
   mainWindow?.minimize();
 });
@@ -155,7 +217,7 @@ ipcMain.handle("window:is-maximized", () => {
   return mainWindow?.isMaximized() ?? false;
 });
 
-// Return selected, non-sensitive runtime information.
+// System information
 ipcMain.handle("system:get-info", () => ({
   platform: process.platform,
   architecture: process.arch,
@@ -165,26 +227,18 @@ ipcMain.handle("system:get-info", () => ({
   appVersion: app.getVersion(),
 }));
 
-// Only permit HTTPS links to be opened externally.
 ipcMain.handle("shell:open-external", async (_event, url) => {
   if (typeof url !== "string") {
     throw new Error("Invalid URL.");
   }
 
-  let parsedUrl;
-
-  try {
-    parsedUrl = new URL(url);
-  } catch {
-    throw new Error("Invalid URL.");
-  }
+  const parsedUrl = new URL(url);
 
   if (parsedUrl.protocol !== "https:") {
     throw new Error("Only HTTPS links are allowed.");
   }
 
   await shell.openExternal(parsedUrl.toString());
-
   return { success: true };
 });
 
@@ -192,10 +246,14 @@ app.whenReady().then(() => {
   createWindow();
 
   app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createWindow();
+    }
   });
 });
 
 app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") app.quit();
+  if (process.platform !== "darwin") {
+    app.quit();
+  }
 });

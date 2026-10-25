@@ -9,6 +9,9 @@ contextBridge.exposeInMainWorld("athenaAPI", {
   exportNotes: (notes) => ipcRenderer.invoke("notes:export", notes),
   importNotes: () => ipcRenderer.invoke("notes:import"),
 
+  loadTasks: () => ipcRenderer.invoke("tasks:load"),
+  saveTasks: (tasks) => ipcRenderer.invoke("tasks:save"),
+
   showNotification: (options) =>
     ipcRenderer.invoke("notification:show", options),
 
