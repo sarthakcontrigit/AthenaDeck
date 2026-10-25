@@ -1,20 +1,26 @@
 
 import { useEffect, useState } from "react";
-import DashboardPage from "./pages/DashboardPage.jsx";
-import TasksPage from "./pages/TasksPage.jsx";
-import NotesPage from "./pages/NotesPage.jsx";
-import SettingsPage from "./pages/SettingsPage.jsx";
+import DashboardPage from "./pages/DashboardPage";
+import TasksPage from "./pages/TasksPage";
+import NotesPage from "./pages/NotesPage";
+import SettingsPage from "./pages/SettingsPage";
 import "./App.css";
 
 function App() {
   const [activePage, setActivePage] = useState("Dashboard");
   const [appVersion, setAppVersion] = useState("Loading...");
+  const [isMaximized, setIsMaximized] = useState(false);
 
   useEffect(() => {
     window.athenaAPI
       .getAppVersion()
       .then(setAppVersion)
       .catch(() => setAppVersion("Unavailable"));
+
+    window.athenaAPI
+      .isWindowMaximized()
+      .then(setIsMaximized)
+      .catch(() => {});
   }, []);
 
   const navigation = [
@@ -23,6 +29,11 @@ function App() {
     { name: "Notes", icon: "▤" },
     { name: "Settings", icon: "⚙" },
   ];
+
+  async function toggleMaximize() {
+    const result = await window.athenaAPI.toggleMaximizeWindow();
+    setIsMaximized(result);
+  }
 
   return (
     <div className="app-shell">
@@ -66,9 +77,38 @@ function App() {
             <strong>{activePage}</strong>
           </div>
 
-          <div className="status-pill">
-            <span className="status-dot" />
-            Desktop mode
+          <div className="header-actions">
+            <div className="status-pill">
+              <span className="status-dot" />
+              Desktop mode
+            </div>
+
+            <button
+              className="window-button"
+              onClick={() => window.athenaAPI.minimizeWindow()}
+              aria-label="Minimize window"
+              title="Minimize"
+            >
+              −
+            </button>
+
+            <button
+              className="window-button"
+              onClick={toggleMaximize}
+              aria-label={isMaximized ? "Restore window" : "Maximize window"}
+              title={isMaximized ? "Restore" : "Maximize"}
+            >
+              {isMaximized ? "❐" : "□"}
+            </button>
+
+            <button
+              className="window-button close-window"
+              onClick={() => window.athenaAPI.closeWindow()}
+              aria-label="Close window"
+              title="Close"
+            >
+              ×
+            </button>
           </div>
         </header>
 

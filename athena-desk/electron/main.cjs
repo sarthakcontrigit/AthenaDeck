@@ -3,8 +3,10 @@ const { app, BrowserWindow, ipcMain, dialog, Notification } = require("electron"
 const path = require("node:path");
 const fs = require("node:fs/promises");
 
+let mainWindow;
+
 function createWindow() {
-  const mainWindow = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     minWidth: 760,
@@ -18,6 +20,10 @@ function createWindow() {
   });
 
   mainWindow.loadURL("http://localhost:5173");
+
+  mainWindow.on("closed", () => {
+    mainWindow = null;
+  });
 }
 
 function getNotesPath() {
@@ -74,12 +80,7 @@ ipcMain.handle("notes:export", async (_event, notes) => {
 
   if (result.canceled || !result.filePath) return { canceled: true };
 
-  await fs.writeFile(
-    result.filePath,
-    JSON.stringify(notes, null, 2),
-    "utf8"
-  );
-
+  await fs.writeFile(result.filePath, JSON.stringify(notes, null, 2), "utf8");
   return { success: true };
 });
 
@@ -94,17 +95,13 @@ ipcMain.handle("notes:import", async () => {
     return { canceled: true };
   }
 
-  const content = await fs.readFile(result.filePaths[0], "utf8");
-  const notes = JSON.parse(content);
+  const notes = JSON.parse(await fs.readFile(result.filePaths[0], "utf8"));
 
-  if (!validateNotes(notes)) {
-    throw new Error("The selected file does not contain valid Athena notes.");
-  }
+  if (!validateNotes(notes)) throw new Error("Invalid notes file.");
 
   return { success: true, notes };
 });
 
-// IPC: Display a native desktop notification.
 ipcMain.handle("notification:show", (_event, options) => {
   if (
     !options ||
@@ -126,6 +123,31 @@ ipcMain.handle("notification:show", (_event, options) => {
   return { success: true };
 });
 
+// Window-control IPC handlers
+ipcMain.handle("window:minimize", () => {
+  mainWindow?.minimize();
+});
+
+ipcMain.handle("window:toggle-maximize", () => {
+  if (!mainWindow) return false;
+
+  if (mainWindow.isMaximized()) {
+    mainWindow.unmaximize();
+  } else {
+    mainWindow.maximize();
+  }
+
+  return mainWindow.isMaximized();
+});
+
+ipcMain.handle("window:close", () => {
+  mainWindow?.close();
+});
+
+ipcMain.handle("window:is-maximized", () => {
+  return mainWindow?.isMaximized() ?? false;
+});
+
 app.whenReady().then(() => {
   createWindow();
 
@@ -137,4 +159,3 @@ app.whenReady().then(() => {
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
 });
-

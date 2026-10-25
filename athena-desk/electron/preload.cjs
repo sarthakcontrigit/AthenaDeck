@@ -9,5 +9,10 @@ contextBridge.exposeInMainWorld("athenaAPI", {
   importNotes: () => ipcRenderer.invoke("notes:import"),
   showNotification: (options) =>
     ipcRenderer.invoke("notification:show", options),
-});
 
+  minimizeWindow: () => ipcRenderer.invoke("window:minimize"),
+  toggleMaximizeWindow: () =>
+    ipcRenderer.invoke("window:toggle-maximize"),
+  closeWindow: () => ipcRenderer.invoke("window:close"),
+  isWindowMaximized: () => ipcRenderer.invoke("window:is-maximized"),
+});

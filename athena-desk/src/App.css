@@ -594,3 +594,41 @@ h1 {
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.window-button {
+  width: 31px;
+  height: 31px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #353643;
+  border-radius: 7px;
+  background: #1b1c25;
+  color: #d9d9e5;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.window-button:hover {
+  background: #30313d;
+}
+
+.window-button.close-window:hover {
+  background: #a53f51;
+  color: white;
+}
+
+@media (max-width: 900px) {
+  .header-actions {
+    gap: 4px;
+  }
+
+  .status-pill {
+    display: none;
+  }
+}
